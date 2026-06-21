@@ -6,8 +6,8 @@ Prépare Windows 11 pour les ateliers Kubernetes et démarre le cluster Vagrant.
 
 .DESCRIPTION
 Installe, uniquement s'ils sont absents, Git/Git Bash, VirtualBox, Vagrant,
-Visual Studio Code, Docker Desktop et MSYS2. Configure Git Bash comme terminal
-VS Code par défaut, puis installe Zsh et Oh My Zsh dans MSYS2.
+kubectl, Visual Studio Code, Docker Desktop et MSYS2. Configure Git Bash comme
+terminal VS Code par défaut, puis installe Zsh et Oh My Zsh dans MSYS2.
 
 Docker Desktop est installé sur la machine HOTE pour l'atelier 01 (rappel
 conteneurs : build/run d'images en local). Le cluster, lui, tourne sous
@@ -112,11 +112,15 @@ $vagrant = $vagrantCandidates | Where-Object { Test-Path $_ } | Select-Object -F
 $code = Join-Path $env:LOCALAPPDATA 'Programs\Microsoft VS Code\bin\code.cmd'
 $dockerDesktop = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
 $msysBash = 'C:\msys64\usr\bin\bash.exe'
+$kubectlLink = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\kubectl.exe'
 
 Install-WingetPackage 'Git et Git Bash' 'Git.Git' { Test-Path $gitBash }
 Install-WingetPackage 'VirtualBox' 'Oracle.VirtualBox' { Test-Path $virtualBoxManage }
 Install-WingetPackage 'Vagrant' 'Hashicorp.Vagrant' {
     [bool]($vagrantCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1)
+}
+Install-WingetPackage 'kubectl' 'Kubernetes.kubectl' {
+    (Test-Path $kubectlLink) -or (Get-Command kubectl.exe -ErrorAction SilentlyContinue)
 }
 Install-WingetPackage 'Visual Studio Code' 'Microsoft.VisualStudioCode' {
     (Test-Path $code) -or (Get-Command code.cmd -ErrorAction SilentlyContinue)
@@ -137,6 +141,39 @@ if (-not $SkipZsh) {
 # fermer la console courante.
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
             [Environment]::GetEnvironmentVariable('Path', 'User')
+
+Write-Step "Configuration de l'alias k pour kubectl"
+
+# Git Bash est le terminal VS Code par défaut dans ce lab.
+$gitBashRc = Join-Path $env:USERPROFILE '.bashrc'
+if (-not (Test-Path $gitBashRc) -or
+    -not (Select-String -Path $gitBashRc -Pattern '^\s*alias\s+k=' -Quiet)) {
+    Add-Content -Path $gitBashRc -Value "alias k='kubectl'" -Encoding ASCII
+}
+Write-Host "[OK] Alias Git Bash : $gitBashRc"
+
+# Configure également l'alias dans Windows PowerShell 5.1 et PowerShell 7.
+$documents = [Environment]::GetFolderPath('MyDocuments')
+$powerShellProfiles = @(
+    (Join-Path $documents 'WindowsPowerShell\profile.ps1'),
+    (Join-Path $documents 'PowerShell\profile.ps1')
+)
+foreach ($profileFile in $powerShellProfiles) {
+    New-Item -ItemType Directory -Path (Split-Path $profileFile -Parent) -Force | Out-Null
+    if (-not (Test-Path $profileFile) -or
+        -not (Select-String -Path $profileFile -Pattern '^\s*Set-Alias\s+(?:-Name\s+)?k\s+' -Quiet)) {
+        Add-Content -Path $profileFile -Value 'Set-Alias -Name k -Value kubectl' -Encoding ASCII
+    }
+}
+Set-Alias -Name k -Value kubectl -Scope Global
+Write-Host '[OK] Alias PowerShell : k -> kubectl'
+
+# admin.conf sera créé dans ce dossier par master.sh. Enregistrer son chemin dès
+# maintenant permet aux nouveaux terminaux d'utiliser directement le cluster.
+$hostKubeconfig = Join-Path $PSScriptRoot 'admin.conf'
+$env:KUBECONFIG = $hostKubeconfig
+[Environment]::SetEnvironmentVariable('KUBECONFIG', $hostKubeconfig, 'User')
+Write-Host "[OK] KUBECONFIG utilisateur : $hostKubeconfig"
 
 Write-Step 'Configuration de Git Bash comme terminal VS Code par défaut'
 $settingsDirectory = Join-Path $env:APPDATA 'Code\User'
@@ -212,6 +249,13 @@ if (-not $SkipZsh) {
             throw "L'installation de Oh My Zsh a echoue (code $ohMyZshExitCode)."
         }
     }
+
+    $zshRc = Join-Path (Split-Path $ohMyZshDirectory -Parent) '.zshrc'
+    if (-not (Test-Path $zshRc) -or
+        -not (Select-String -Path $zshRc -Pattern '^\s*alias\s+k=' -Quiet)) {
+        Add-Content -Path $zshRc -Value "alias k='kubectl'" -Encoding ASCII
+    }
+    Write-Host "[OK] Alias Zsh : $zshRc"
 }
 
 Write-Step 'Vérification de la virtualisation matérielle'

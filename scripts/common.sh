@@ -25,7 +25,11 @@ net.bridge.bridge-nf-call-iptables  = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward                 = 1
 EOF
-sysctl --system >/dev/null
+# Ne charger que les paramètres Kubernetes. `sysctl --system` recharge aussi
+# les valeurs Ubuntu de /usr/lib/sysctl.d ; certains hyperviseurs imbriqués
+# refusent notamment accept_source_route et promote_secondaries, ce qui peut
+# faire échouer le provisioning alors que ces clés sont inutiles à Kubernetes.
+sysctl -p /etc/sysctl.d/k8s.conf >/dev/null
 
 echo "==> [4/7] Installation de containerd + client NFS (requis sur TOUS les noeuds)"
 apt-get update -qq
