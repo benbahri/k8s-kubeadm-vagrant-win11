@@ -1,0 +1,22 @@
+# --- État Vagrant ---
+.vagrant/
+*.box
+
+# --- Fichiers générés par le provisioning (dossier partagé /vagrant) ---
+# SENSIBLES : ne JAMAIS committer (creds cluster-admin + token de join)
+admin.conf
+join-command.sh
+
+# --- Certificats / clés éventuels ---
+*.crt
+*.key
+*.pem
+
+# --- Journaux ---
+*.log
+kubeadm-bootstrap-windows.log
+
+# --- Divers OS / éditeurs ---
+.DS_Store
+*~
+*.swp
