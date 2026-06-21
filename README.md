@@ -52,10 +52,10 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 Le script [`bootstrap-windows.ps1`](bootstrap-windows.ps1) demande les droits
 administrateur puis installe, si nécessaire, VirtualBox, Vagrant, **kubectl**,
-Git/Git Bash, Visual Studio Code, **Docker Desktop** et MSYS2. Il configure Git
-Bash comme terminal VS Code par défaut, ajoute l'alias `k` pour `kubectl` dans
-Git Bash, PowerShell et Zsh, configure `KUBECONFIG` vers le fichier `admin.conf`,
-installe Zsh avec Oh My Zsh dans MSYS2, puis démarre `master`, `worker1` et
+Git/Git Bash, Visual Studio Code, **Docker Desktop** et MSYS2. Il configure
+**MSYS2 Zsh avec Oh My Zsh comme terminal VS Code et shell MSYS2 par défaut**,
+ajoute l'alias `k` pour `kubectl` dans Git Bash, PowerShell et Zsh, configure
+`KUBECONFIG` vers le fichier `admin.conf`, puis démarre `master`, `worker1` et
 `worker2` séquentiellement. Utilisez `-NoVagrantUp` pour
 installer les outils sans démarrer les VMs, `-SkipZsh` pour ne pas installer
 l'environnement Zsh, ou `-SkipDocker` pour ne pas installer Docker Desktop.

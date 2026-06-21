@@ -6,8 +6,8 @@ Prépare Windows 11 pour les ateliers Kubernetes et démarre le cluster Vagrant.
 
 .DESCRIPTION
 Installe, uniquement s'ils sont absents, Git/Git Bash, VirtualBox, Vagrant,
-kubectl, Visual Studio Code, Docker Desktop et MSYS2. Configure Git Bash comme
-terminal VS Code par défaut, puis installe Zsh et Oh My Zsh dans MSYS2.
+kubectl, Visual Studio Code, Docker Desktop et MSYS2. Configure Zsh avec
+Oh My Zsh comme terminal VS Code et shell MSYS2 par défaut.
 
 Docker Desktop est installé sur la machine HOTE pour l'atelier 01 (rappel
 conteneurs : build/run d'images en local). Le cluster, lui, tourne sous
@@ -144,7 +144,7 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
 
 Write-Step "Configuration de l'alias k pour kubectl"
 
-# Git Bash est le terminal VS Code par défaut dans ce lab.
+# Git Bash reste disponible comme terminal alternatif dans ce lab.
 $gitBashRc = Join-Path $env:USERPROFILE '.bashrc'
 if (-not (Test-Path $gitBashRc) -or
     -not (Select-String -Path $gitBashRc -Pattern '^\s*alias\s+k=' -Quiet)) {
@@ -175,32 +175,45 @@ $env:KUBECONFIG = $hostKubeconfig
 [Environment]::SetEnvironmentVariable('KUBECONFIG', $hostKubeconfig, 'User')
 Write-Host "[OK] KUBECONFIG utilisateur : $hostKubeconfig"
 
-Write-Step 'Configuration de Git Bash comme terminal VS Code par défaut'
+Write-Step 'Configuration du terminal VS Code par défaut'
 $settingsDirectory = Join-Path $env:APPDATA 'Code\User'
 $settingsFile = Join-Path $settingsDirectory 'settings.json'
 New-Item -ItemType Directory -Path $settingsDirectory -Force | Out-Null
 
 if (Test-Path $settingsFile) {
     $settings = Get-Content $settingsFile -Raw
-    if ([string]::IsNullOrWhiteSpace($settings)) {
-        $settings = "{`r`n  `"terminal.integrated.defaultProfile.windows`": `"Git Bash`"`r`n}"
-    } else {
-        $propertyPattern = '(?m)("terminal\.integrated\.defaultProfile\.windows"\s*:\s*)"[^"]*"'
-        if ($settings -match $propertyPattern) {
-            $settings = $settings -replace $propertyPattern, '$1"Git Bash"'
-        } else {
-            $settings = $settings -replace '(?s)^\s*\{', "{`r`n  `"terminal.integrated.defaultProfile.windows`": `"Git Bash`","
-        }
-    }
 } else {
-    $settings = @"
-{
-  "terminal.integrated.defaultProfile.windows": "Git Bash"
+    $settings = '{}'
 }
-"@
+if ([string]::IsNullOrWhiteSpace($settings)) {
+    $settings = '{}'
+}
+
+$defaultTerminalProfile = if ($SkipZsh) { 'Git Bash' } else { 'MSYS2 Zsh' }
+$defaultProfilePattern = '(?m)("terminal\.integrated\.defaultProfile\.windows"\s*:\s*)"[^"]*"'
+if ($settings -match $defaultProfilePattern) {
+    $settings = $settings -replace $defaultProfilePattern, ('$1"' + $defaultTerminalProfile + '"')
+} else {
+    $settings = $settings -replace '(?s)^\s*\{', ("{`r`n  `"terminal.integrated.defaultProfile.windows`": `"$defaultTerminalProfile`",")
+}
+
+if (-not $SkipZsh -and $settings -notmatch '"MSYS2 Zsh"\s*:') {
+    $zshProfileEntry = @'
+"MSYS2 Zsh": {
+      "path": "C:\\msys64\\msys2_shell.cmd",
+      "args": ["-defterm", "-here", "-no-start", "-msys", "-shell", "zsh"]
+    }
+'@
+    $profilesPattern = '(?m)("terminal\.integrated\.profiles\.windows"\s*:\s*\{)'
+    if ($settings -match $profilesPattern) {
+        $settings = $settings -replace $profilesPattern, ('$1' + "`r`n    " + $zshProfileEntry + ',')
+    } else {
+        $profilesProperty = "  `"terminal.integrated.profiles.windows`": {`r`n    $zshProfileEntry`r`n  },"
+        $settings = $settings -replace '(?s)^\s*\{', ("{`r`n$profilesProperty")
+    }
 }
 Set-Content -Path $settingsFile -Value $settings -Encoding UTF8
-Write-Host "[OK] Configuration VS Code : $settingsFile"
+Write-Host "[OK] Terminal VS Code par défaut : $defaultTerminalProfile"
 
 if (-not $SkipZsh) {
     Write-Step 'Installation de Zsh dans MSYS2'
@@ -256,6 +269,22 @@ if (-not $SkipZsh) {
         Add-Content -Path $zshRc -Value "alias k='kubectl'" -Encoding ASCII
     }
     Write-Host "[OK] Alias Zsh : $zshRc"
+
+    # Les sessions MSYS2 ouvertes sans option explicite basculent elles aussi
+    # vers Zsh. Le test interactif évite d'affecter les commandes bash -lc du
+    # bootstrap et les scripts non interactifs.
+    $msysBashProfile = Join-Path (Split-Path $ohMyZshDirectory -Parent) '.bash_profile'
+    $zshDefaultMarker = '# KUB-ORCH: use Zsh as the interactive default shell'
+    if (-not (Test-Path $msysBashProfile) -or
+        -not (Select-String -Path $msysBashProfile -SimpleMatch $zshDefaultMarker -Quiet)) {
+        Add-Content -Path $msysBashProfile -Encoding ASCII -Value @"
+$zshDefaultMarker
+if [[ `$- == *i* ]] && command -v zsh >/dev/null 2>&1; then
+  exec zsh -l
+fi
+"@
+    }
+    Write-Host '[OK] Zsh avec Oh My Zsh est le shell interactif MSYS2 par défaut.'
 }
 
 Write-Step 'Vérification de la virtualisation matérielle'
