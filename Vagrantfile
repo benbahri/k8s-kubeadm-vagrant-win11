@@ -8,8 +8,8 @@ BOX        = "bento/ubuntu-22.04"
 MASTER_IP  = "192.168.56.10"
 WORKERS    = { "worker1" => "192.168.56.11", "worker2" => "192.168.56.12" }
 CPUS       = 2
-MEM_MASTER = 2560
-MEM_WORKER = 2048
+MEM_MASTER = 4096
+MEM_WORKER = 4096
 
 Vagrant.configure("2") do |config|
   config.vm.box = BOX
