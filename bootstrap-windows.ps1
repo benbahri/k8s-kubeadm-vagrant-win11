@@ -150,7 +150,17 @@ if (-not (Test-Path $gitBashRc) -or
     -not (Select-String -Path $gitBashRc -Pattern '^\s*alias\s+k=' -Quiet)) {
     Add-Content -Path $gitBashRc -Value "alias k='kubectl'" -Encoding ASCII
 }
-Write-Host "[OK] Alias Git Bash : $gitBashRc"
+$bashCompletionMarker = '# KUB-ORCH: kubectl completion for Git Bash'
+if (-not (Select-String -Path $gitBashRc -SimpleMatch $bashCompletionMarker -Quiet)) {
+    Add-Content -Path $gitBashRc -Encoding ASCII -Value @'
+# KUB-ORCH: kubectl completion for Git Bash
+if command -v kubectl >/dev/null 2>&1; then
+  source <(kubectl completion bash)
+  complete -o default -F __start_kubectl k
+fi
+'@
+}
+Write-Host "[OK] Alias et complétion Git Bash : $gitBashRc"
 
 # Configure également l'alias dans Windows PowerShell 5.1 et PowerShell 7.
 $documents = [Environment]::GetFolderPath('MyDocuments')
@@ -164,9 +174,21 @@ foreach ($profileFile in $powerShellProfiles) {
         -not (Select-String -Path $profileFile -Pattern '^\s*Set-Alias\s+(?:-Name\s+)?k\s+' -Quiet)) {
         Add-Content -Path $profileFile -Value 'Set-Alias -Name k -Value kubectl' -Encoding ASCII
     }
+    $powerShellCompletionMarker = '# KUB-ORCH: kubectl completion for PowerShell'
+    if (-not (Select-String -Path $profileFile -SimpleMatch $powerShellCompletionMarker -Quiet)) {
+        Add-Content -Path $profileFile -Encoding ASCII -Value @'
+# KUB-ORCH: kubectl completion for PowerShell
+if (Get-Command kubectl -ErrorAction SilentlyContinue) {
+    kubectl completion powershell | Out-String | Invoke-Expression
+    if (Get-Variable __kubectlCompleterBlock -ErrorAction SilentlyContinue) {
+        Register-ArgumentCompleter -CommandName k -ScriptBlock $__kubectlCompleterBlock
+    }
+}
+'@
+    }
 }
 Set-Alias -Name k -Value kubectl -Scope Global
-Write-Host '[OK] Alias PowerShell : k -> kubectl'
+Write-Host '[OK] Alias et complétion PowerShell : k -> kubectl'
 
 # admin.conf sera créé dans ce dossier par master.sh. Enregistrer son chemin dès
 # maintenant permet aux nouveaux terminaux d'utiliser directement le cluster.
@@ -265,10 +287,29 @@ if (-not $SkipZsh) {
 
     $zshRc = Join-Path (Split-Path $ohMyZshDirectory -Parent) '.zshrc'
     if (-not (Test-Path $zshRc) -or
+        -not (Select-String -Path $zshRc -Pattern 'oh-my-zsh\.sh' -Quiet)) {
+        Add-Content -Path $zshRc -Encoding ASCII -Value @'
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME="robbyrussell"
+plugins=(git)
+source "$ZSH/oh-my-zsh.sh"
+'@
+    }
+    if (-not (Test-Path $zshRc) -or
         -not (Select-String -Path $zshRc -Pattern '^\s*alias\s+k=' -Quiet)) {
         Add-Content -Path $zshRc -Value "alias k='kubectl'" -Encoding ASCII
     }
-    Write-Host "[OK] Alias Zsh : $zshRc"
+    $zshCompletionMarker = '# KUB-ORCH: kubectl completion for Zsh'
+    if (-not (Select-String -Path $zshRc -SimpleMatch $zshCompletionMarker -Quiet)) {
+        Add-Content -Path $zshRc -Encoding ASCII -Value @'
+# KUB-ORCH: kubectl completion for Zsh
+if command -v kubectl >/dev/null 2>&1; then
+  source <(kubectl completion zsh)
+  compdef k=kubectl
+fi
+'@
+    }
+    Write-Host "[OK] Alias et complétion Zsh : $zshRc"
 
     # Les sessions MSYS2 ouvertes sans option explicite basculent elles aussi
     # vers Zsh. Le test interactif évite d'affecter les commandes bash -lc du

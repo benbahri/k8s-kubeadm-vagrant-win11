@@ -55,7 +55,8 @@ administrateur puis installe, si nécessaire, VirtualBox, Vagrant, **kubectl**,
 Git/Git Bash, Visual Studio Code, **Docker Desktop** et MSYS2. Il configure
 **MSYS2 Zsh avec Oh My Zsh comme terminal VS Code et shell MSYS2 par défaut**,
 ajoute l'alias `k` pour `kubectl` dans Git Bash, PowerShell et Zsh, configure
-`KUBECONFIG` vers le fichier `admin.conf`, puis démarre `master`, `worker1` et
+son autocomplétion dans ces trois shells, configure `KUBECONFIG` vers le fichier
+`admin.conf`, puis démarre `master`, `worker1` et
 `worker2` séquentiellement. Utilisez `-NoVagrantUp` pour
 installer les outils sans démarrer les VMs, `-SkipZsh` pour ne pas installer
 l'environnement Zsh, ou `-SkipDocker` pour ne pas installer Docker Desktop.
@@ -66,6 +67,43 @@ l'environnement Zsh, ou `-SkipDocker` pour ne pas installer Docker Desktop.
 > volontairement pas installé (le `dockershim` a été retiré de Kubernetes en 1.24).
 > Docker Desktop s'appuie sur WSL2 : un redémarrage et l'activation de WSL2 peuvent
 > être nécessaires au premier lancement.
+
+### Atelier 01 sans Docker Desktop (Windows virtualisé)
+
+Lorsque Windows 11 est lui-même une VM, Docker Desktop peut refuser de démarrer
+faute de support Hyper-V/WSL2. Une VM Linux `dockerlab`, optionnelle et séparée du
+cluster Kubernetes, permet d'exécuter l'atelier avec Docker Engine. Sur une
+nouvelle installation, lancez le bootstrap avec `-SkipDocker`, puis :
+
+```powershell
+# Ne pas démarrer le cluster en même temps afin d'économiser les ressources
+vagrant halt master worker1 worker2
+vagrant up dockerlab
+vagrant ssh dockerlab
+```
+
+Dans la VM :
+
+```bash
+cd /vagrant/dockerlab
+docker pull nginx:1.27-alpine
+docker run -d --name web -p 8080:80 nginx:1.27-alpine
+curl http://localhost:8080
+docker rm -f web
+
+docker build -t monapp:1.0 .
+docker run -d --name monapp -p 8090:80 monapp:1.0
+curl http://localhost:8090
+docker rm -f monapp
+```
+
+Les ports sont également accessibles depuis Windows via `http://localhost:8080`
+et `http://localhost:8090`. Une fois l'atelier terminé :
+
+```powershell
+vagrant halt dockerlab
+vagrant up master worker1 worker2
+```
 
 > Zsh n'est pas fourni par Git Bash : il est installé dans MSYS2 et se lance avec
 > `C:\msys64\msys2_shell.cmd -defterm -here -no-start -msys -shell zsh`.

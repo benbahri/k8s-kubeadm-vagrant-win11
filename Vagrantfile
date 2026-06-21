@@ -45,4 +45,20 @@ Vagrant.configure("2") do |config|
       w.vm.provision "worker", type: "shell", path: "scripts/worker.sh"
     end
   end
+
+  # -------- DOCKERLAB (optionnelle, atelier 01 uniquement) --------
+  # Cette VM évite Docker Desktop/WSL2 lorsque l'hôte Windows est lui-même une
+  # VM. Elle n'est pas démarrée par `vagrant up` ni par bootstrap-windows.ps1.
+  config.vm.define "dockerlab", autostart: false do |d|
+    d.vm.hostname = "dockerlab"
+    d.vm.network "private_network", ip: "192.168.56.20"
+    d.vm.network "forwarded_port", guest: 8080, host: 8080, auto_correct: true
+    d.vm.network "forwarded_port", guest: 8090, host: 8090, auto_correct: true
+    d.vm.provider "virtualbox" do |vb|
+      vb.name   = "dockerlab"
+      vb.cpus   = 2
+      vb.memory = 2048
+    end
+    d.vm.provision "dockerlab", type: "shell", path: "scripts/dockerlab.sh"
+  end
 end
