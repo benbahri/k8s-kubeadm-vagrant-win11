@@ -2,10 +2,12 @@
 # =====================================================================
 #  common.sh — Préparation commune à TOUS les noeuds (master + workers)
 #  Cible : Ubuntu 22.04 LTS · Kubernetes 1.30 · runtime containerd
+#  Args : $1 = IP host-only du noeud (ex: 192.168.56.10)
 # =====================================================================
 set -euo pipefail
 
 K8S_MINOR="v1.33"   # version maintenue (bumper ici pour changer toute la flotte)
+NODE_IP="${1:-}"
 
 echo "==> [1/7] Désactivation du swap (exigence kubelet)"
 swapoff -a
@@ -54,6 +56,15 @@ echo "==> [6/7] Installation de kubelet, kubeadm, kubectl"
 apt-get update -qq
 apt-get install -y -qq kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl   # fige les versions
+
+if [[ -n "${NODE_IP}" ]]; then
+  echo "==> Configuration de kubelet avec l'IP host-only ${NODE_IP}"
+  cat <<EOF >/etc/default/kubelet
+KUBELET_EXTRA_ARGS=--node-ip=${NODE_IP}
+EOF
+  systemctl daemon-reload
+  systemctl restart kubelet
+fi
 
 echo "==> [7/7] Pré-téléchargement des images du control-plane (accélère kubeadm init)"
 kubeadm config images pull >/dev/null 2>&1 || true

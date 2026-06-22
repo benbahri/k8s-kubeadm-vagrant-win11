@@ -24,6 +24,10 @@ export KUBECONFIG=/etc/kubernetes/admin.conf
 
 echo "==> Installation du CNI Calico"
 kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.30.0/manifests/calico.yaml
+# Sur les VMs Vagrant multi-NIC, la route par défaut passe par l'interface NAT.
+# Calico doit utiliser l'interface host-only, celle qui permet de joindre l'API.
+kubectl -n kube-system set env daemonset/calico-node \
+  IP_AUTODETECTION_METHOD="can-reach=${API_IP}"
 
 # SÉCURITÉ (lab uniquement) : les fichiers ci-dessous sont déposés dans le dossier
 # partagé /vagrant pour le confort de la formation (join des workers + pilotage

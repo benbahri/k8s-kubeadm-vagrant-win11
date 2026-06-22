@@ -24,6 +24,8 @@ Deux usages :
 - Système : **Ubuntu 22.04 LTS**
 - Kubernetes : **1.33** · Runtime : **containerd** · CNI : **Calico**
 - Réseau Pods (CIDR) : `192.168.0.0/16`
+- IP des noeuds : interface **host-only** `192.168.56.0/24` forcée via
+  `KUBELET_EXTRA_ARGS=--node-ip=...` ; l'interface NAT reste réservée à Internet.
 
 > Remarque : le support historique installait Kubernetes sur **CentOS**. CentOS 7/8
 > étant en fin de vie, cette procédure est portée sur **Ubuntu 22.04** et le dépôt
@@ -327,6 +329,7 @@ source ~/.bashrc
 | PVC reste `Pending` | provisioner NFS KO | `kubectl get pods -n kube-system | grep nfs` + logs |
 | cgroup driver mismatch | containerd ≠ systemd | `SystemdCgroup = true` dans `/etc/containerd/config.toml` |
 | `accept_source_route` / `promote_secondaries`: `Invalid argument` | `sysctl --system` charge des clés Ubuntu non supportées par l'hyperviseur | utiliser `sysctl -p /etc/sysctl.d/k8s.conf` (déjà appliqué dans `common.sh`) |
+| les noeuds affichent `10.0.2.15` comme `INTERNAL-IP` | kubelet sélectionne l'interface NAT | forcer `--node-ip` sur l'IP host-only et `IP_AUTODETECTION_METHOD` pour Calico (automatisé par les scripts) |
 
 ---
 

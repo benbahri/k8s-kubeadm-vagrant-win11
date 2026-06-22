@@ -25,7 +25,7 @@ Vagrant.configure("2") do |config|
       vb.cpus   = CPUS
       vb.memory = MEM_MASTER
     end
-    m.vm.provision "common", type: "shell", path: "scripts/common.sh"
+    m.vm.provision "common", type: "shell", path: "scripts/common.sh", args: [MASTER_IP]
     m.vm.provision "master", type: "shell", path: "scripts/master.sh", args: [MASTER_IP]
     # Le stockage s'installe APRÈS la jonction des workers :
     #   vagrant ssh master -c "sudo bash /vagrant/scripts/storage.sh #{MASTER_IP}"
@@ -41,7 +41,7 @@ Vagrant.configure("2") do |config|
         vb.cpus   = CPUS
         vb.memory = MEM_WORKER
       end
-      w.vm.provision "common", type: "shell", path: "scripts/common.sh"
+      w.vm.provision "common", type: "shell", path: "scripts/common.sh", args: [ip]
       w.vm.provision "worker", type: "shell", path: "scripts/worker.sh"
     end
   end
